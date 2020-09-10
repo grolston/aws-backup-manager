@@ -1,0 +1,144 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS Backup Manager Tag Selector
+
+Resources:
+
+  rFileSystemBackupVault:
+    Type: AWS::Backup::BackupVault
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BackupVaultName: !Sub aws-backup-${AWS::AccountId}
+      AccessPolicy: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "backup:DeleteBackupVault",
+              "Resource": "*"
+            }
+          ]
+        }
+
+  rDefaultFileSystemBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: Daily-Weekly-Monthly
+        BackupPlanRule:
+          - RuleName: DailyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 ? * * *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              DeleteAfterDays: 35
+          - RuleName: WeeklyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 ? * 7 *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              DeleteAfterDays: 90
+          - RuleName: MonthlyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 1 * ? *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              MoveToColdStorageAfterDays: 90
+              DeleteAfterDays: 1825
+
+  rFileSystemBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref rDefaultFileSystemBackupPlan
+      BackupSelection:
+        IamRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "AWS-Backup"
+           ConditionValue: "Daily-Weekly-Monthly"
+        SelectionName: Daily-Weekly-Monthly-Backups
+
+  rDailyFileSystemBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: Daily-Weekly-Monthly
+        BackupPlanRule:
+          - RuleName: DailyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 ? * * *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              DeleteAfterDays: 35
+
+  rDailyFileSystemBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref rDefaultFileSystemBackupPlan
+      BackupSelection:
+        IamRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "AWS-Backup"
+           ConditionValue: "Daily"
+        SelectionName: Daily-Backups
+
+  rWeeklyFileSystemBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: Weekly
+        BackupPlanRule:
+          - RuleName: WeeklyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 ? * 7 *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              DeleteAfterDays: 90
+
+  rWeeklyFileSystemBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref rWeeklyFileSystemBackupPlan
+      BackupSelection:
+        IamRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "AWS-Backup"
+           ConditionValue: "Weekly"
+        SelectionName: Weekly-Backups
+
+  rMonthlyFileSystemBackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Properties:
+      BackupPlan:
+        BackupPlanName: Monthly
+        BackupPlanRule:
+          - RuleName: MonthlyBackups
+            TargetBackupVault: !Ref rFileSystemBackupVault
+            ScheduleExpression: "cron(0 5 1 * ? *)"
+            StartWindowMinutes: 480
+            CompletionWindowMinutes: 10080
+            Lifecycle:
+              MoveToColdStorageAfterDays: 90
+              DeleteAfterDays: 1825
+
+  rMonthlyFileSystemBackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Properties:
+      BackupPlanId: !Ref rMonthlyFileSystemBackupPlan
+      BackupSelection:
+        IamRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole
+        ListOfTags:
+         - ConditionType: "STRINGEQUALS"
+           ConditionKey: "AWS-Backup"
+           ConditionValue: "Monthly"
+        SelectionName: Monthly-Backups
